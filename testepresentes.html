@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Lista de Presentes</title>
+  <meta property="og:title" content="Lista de Presentes de Casamento - Victor e Lari" />
+  <meta property="og:description" content="Presentes ou contribuições para o casamento de Victor e Lari. Escolha um item da lista ou envie um valor pelo Pix ou Cartão." />
+  <meta property="og:image" content="https://via.placeholder.com/300x200?text=Casamento+Victor+e+Lari" />
+  <meta property="og:url" content="https://victorelari.vercel.app" />
+  <meta property="og:type" content="website" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h1 {
+      color: #444;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    #filtros {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    #filtros input, #filtros select {
+      padding: 8px;
+      font-size: 16px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    #lista {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      justify-items: center;
+    }
+    .presente {
+      background: #fff;
+      border: 2px solid #d4af37;
+      border-radius: 15px;
+      padding: 15px;
+      width: 220px;
+      height: 350px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .presente img {
+      width: 100%;
+      height: 150px;
+      object-fit: contain;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .presente h3 {
+      font-size: 16px;
+      color: #333;
+      margin: 10px 0 5px;
+    }
+    .presente .preco {
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 10px;
+    }
+    .presente button {
+      padding: 10px;
+      background: #d4af37;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .presente button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    .presente .mensagem-comprado {
+      font-size: 12px;
+      color: #d00;
+      margin-top: 10px;
+    }
+    .presente .botao-liberar {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #007bff;
+      cursor: pointer;
+      text-decoration: underline;
+      background: none;
+      border: none;
+    }
+    #modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    #modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      width: 90%;
+      max-width: 500px;
+    }
+    .pagamento-opcoes {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .pagamento-opcoes div {
+      background: #f0f0f0;
+      padding: 15px;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+    .pix-copia-cola {
+      font-size: 12px;
+      word-break: break-word;
+      margin-top: 10px;
+    }
+    .fechar-modal {
+      margin-top: 20px;
+      background: #ccc;
+      color: #000;
+    }
+    a.botao-cartao {
+      display: inline-block;
+      margin-top: 10px;
+      background: #25a7e9;
+      color: white;
+      padding: 8px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .copiar-pix {
+      background: #d4af37;
+      color: white;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 4px;
+      margin-top: 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Lista de Presentes do Casamento</h1>
+  
+  <!-- Filtros de pesquisa e categoria -->
+  <div id="filtros">
+    <input type="text" id="pesquisa" placeholder="Pesquise por nome..." oninput="filtrarLista()">
+    <select id="categoria" onchange="filtrarLista()">
+      <option value="">Categoria</option>
+      <option value="eletrodomésticos">Eletrodomésticos</option>
+      <option value="móveis">Móveis</option>
+      <option value="cozinha">Cozinha</option>
+      <option value="sala">Sala</option>
+      <option value="utensilios">Utensílios</option>
+      <option value="outros">Outros</option>
+    </select>
+  </div>
+  
+  <div id="lista"></div>
+
+  <!-- Modal -->
+  <div id="modal">
+    <div id="modal-content">
+      <h3 id="modal-nome"></h3>
+      <p id="modal-preco"></p>
+      <div class="pagamento-opcoes">
+        <div>
+          <span>Pix</span>
+          <br>
+          <img id="qr-pix" src="" alt="QR Code Pix" width="150">
+          <div class="pix-copia-cola" id="pix-chave"></div>
+          <button class="copiar-pix" onclick="copiarPix()">Copiar</button>
+        </div>
+        <div>
+          <span>Cartão</span>
+          <br>
+          <a id="link-cartao" class="botao-cartao" href="#" target="_blank">Pagar com Cartão com mais 5%</a>
+        </div>
+      </div>
+      <button class="fechar-modal" onclick="fecharModal()">Fechar</button>
+    </div>
+  </div>
+
+  <script>
+    function copiarPix() {
+      const chave = document.getElementById("pix-chave").innerText;
+      navigator.clipboard.writeText(chave);
+      alert("Chave Pix copiada!");
+    }
+
+    function fecharModal() {
+      document.getElementById("modal").style.display = "none";
+    }
+
+    const listaPresentes = [
+      {
+        nome: "Fogão CookTop",
+        preco: 549,
+        imagem: "https://a-static.mlcdn.com.br/800x560/cooktop-5-bocas-mondial-a-gas-glp-preto-tripla-chama-ctg-03/magazineluiza/227131800/d8ac8479645807d2c7e8ca3a060dc3ec.jpg",
+        linkCartao: "https://mpago.la/16WGpWT",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: ["eletrodomésticos", "cozinha"]
+      },
+      {
+        nome: "Sofá retrátil 4 lugares",
+        preco: 1550,
+        imagem: "https://m.media-amazon.com/images/I/61+cfbCLYpL._AC_SL1000_.jpg",
+        linkCartao: "https://mpago.la/2VMKaMG",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: ["móveis", "sala"]
+      },
+      {
+        nome: "Geraldeira duplex",
+        preco: 3400,
+        imagem: "https://http2.mlstatic.com/D_NQ_NP_2X_901662-MLA74651636810_022024-F.webp",
+        linkCartao: "https://mpago.la/2r4K8J3",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: ["cozinha", "eletrodomésticos"]
+      },
+      {
+        nome: "Air Fryer Forno 12 Litros",
+        preco: 599,
+        imagem: "https://m.media-amazon.com/images/I/51wwp25UBVL._AC_SL1000_.jpg",
+        linkCartao: "https://mpago.la/15GWqvo",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: ["cozinha", "eletrodomésticos"]
+      },
+      {
+        nome: "Jogo de Panelas",
+        preco: 297.90,
+        imagem: "https://a-static.mlcdn.com.br/800x560/conjunto-panelas-13-pecas-antiaderente-teflon-tampa-vidro-preto-manolar/plcomercioecomm/15355470233/6ecdc9ad83e9f1667a427f1d50c12920.jpeg",
+        linkCartao: "https://mpago.la/2QrXx39",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: ["cozinha", "utensilios"]
+      },
+      {
+        nome: "Faqueiro",
+        preco: 75.56,
+        imagem: "https://m.media-amazon.com/images/I/51fBgKFi09L._AC_SL1200_.jpg",
+        linkCartao: "https://mpago.la/2gFAkcp",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: ["cozinha", "utensilios"]
+      },
+      {
+        nome: "Conjunto de Talheres",
+        preco: 72.95,
+        imagem: "https://m.media-amazon.com/images/I/61x2HGF7CfL._AC_SL1000_.jpg",
+        linkCartao: "https://mpago.la/1eu1cjD",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: ["cozinha", "utensilios"]
+      },
+	  {
+        nome: "Liquidificador Mondial",
+        preco: 149.90,
+        imagem: "https://m.media-amazon.com/images/I/71unLTcmctL._AC_SL1500_.jpg",
+        linkCartao: "https://mpago.la/2ezAfHe",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: ["cozinha", "utensilios"]
+      },
+	  {
+        nome: "Badeteira inox Britânia",
+        preco: 142.40,
+        imagem: "https://m.media-amazon.com/images/I/61Zyy428TOL._AC_SL1200_.jpg",
+        linkCartao: "https://mpago.la/33aeeyC",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: ["cozinha", "eletrodomésticos"]
+      }, 
+	  {
+        nome: "Panela de pressão",
+        preco: 179.99,
+        imagem: "https://www.americanas.com.br/_next/image?url=https%3A%2F%2Famericanas.vtexassets.com%2Farquivos%2Fids%2F584802%2F7460117991_1SZ.jpg%3Fv%3D638750844141400000&w=1280&q=75",
+        linkCartao: "https://mpago.la/1kXq9AT",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: ["cozinha", "eletrodomésticos"]
+      },
+      {
+        nome: "Ou faça uma contribuição de algum valor",
+        preco: null,
+        imagem: "https://via.placeholder.com/150",
+        linkCartao: "https://link.mercadopago.com.br/presentesvictorelari",
+        chavePix: "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825",
+        categoria: "outros",
+        livre: true
+      }
+    ];
+
+function gerarLista() {
+  const lista = document.getElementById("lista");
+  lista.innerHTML = "";
+
+  const pesquisaValor = document.getElementById("pesquisa").value.toLowerCase();
+  const categoriaValor = document.getElementById("categoria").value;
+
+  const listaFiltrada = listaPresentes.filter(item => {
+    const nomeMatch = item.nome.toLowerCase().includes(pesquisaValor);
+    const categoriaMatch = categoriaValor ? item.categoria.includes(categoriaValor) : true; // Verifica se a categoria está no array
+    return nomeMatch && categoriaMatch;
+  });
+
+  listaFiltrada.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.className = "presente";
+
+    const img = document.createElement("img");
+    img.src = item.imagem;
+
+    const nome = document.createElement("h3");
+    nome.textContent = item.nome;
+
+    const preco = document.createElement("p");
+    preco.className = "preco";
+    preco.textContent = item.preco ? `R$ ${item.preco.toFixed(2)}` : "Contribuição livre";
+
+    const botao = document.createElement("button");
+    botao.textContent = "Quero presentear";
+    botao.onclick = () => mostrarModal(item);
+
+    const mensagem = document.createElement("div");
+    mensagem.className = "mensagem-comprado";
+    mensagem.style.display = "none";
+    mensagem.textContent = "Item já presenteado. Entre em contato para confirmar.";
+
+    const botaoLiberar = document.createElement("button");
+    botaoLiberar.className = "botao-liberar";
+    botaoLiberar.textContent = "Liberar item";
+    botaoLiberar.style.display = "none";
+    botaoLiberar.onclick = () => {
+      const senha = prompt("Digite a senha para liberar o item:");
+      if (senha === "Victor@123") {
+        localStorage.removeItem(`presente_${index}`);
+        gerarLista();
+      } else {
+        alert("Senha incorreta.");
+      }
+    };
+
+    if (!item.livre && localStorage.getItem(`presente_${index}`)) {
+      botao.disabled = true;
+      mensagem.style.display = "block";
+      botaoLiberar.style.display = "block";
+    }
+
+    div.appendChild(img);
+    div.appendChild(nome);
+    div.appendChild(preco);
+    div.appendChild(botao);
+    div.appendChild(mensagem);
+    div.appendChild(botaoLiberar);
+    lista.appendChild(div);
+  });
+}
+
+    function mostrarModal(item) {
+      if (!item.livre) {
+        const index = listaPresentes.indexOf(item);
+        localStorage.setItem(`presente_${index}`, true);
+        gerarLista();
+      }
+
+      document.getElementById("modal-nome").textContent = item.nome;
+      document.getElementById("modal-preco").textContent = item.preco ? `R$ ${item.preco.toFixed(2)}` : "Contribuição livre";
+
+      document.getElementById("qr-pix").src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(item.chavePix || "00020126580014br.gov.bcb.pix0136cb5d9054-5ab7-4748-bb6b-4282eef403555204000053039865802BR5923Victor Santos Goncalves6009Sao Paulo62290525REC68057C082911349919028763040825")}`;
+      document.getElementById("pix-chave").textContent = item.chavePix;
+
+      document.getElementById("link-cartao").href = item.linkCartao;
+      document.getElementById("modal").style.display = "flex";
+    }
+
+    function filtrarLista() {
+      gerarLista();
+    }
+
+    gerarLista(); // Inicializa a lista
+  </script>
+</body>
+</html>
