@@ -1,3 +1,5 @@
+<!-- RESPONDER NO CHAT GPT QUE ESTÁ DANDO O ERRO Falha ao salvar no servidor: Failed to fetch NOVAMENTE APÓS A ÚLTIMA MUDANÇA -->
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -685,12 +687,72 @@
       t._tm = setTimeout(() => { t.style.opacity = '0'; t.style.display = 'none'; }, time);
     }
 
-    /* ---------- Persistência (localStorage) ---------- */
-    function setComprador(itemName, obj) { localStorage.setItem(`presente_${itemName}`, JSON.stringify(obj)); }
-    function getComprador(itemName) {
-      const v = localStorage.getItem(`presente_${itemName}`); if (!v) return null;
-      try { return JSON.parse(v); } catch (e) { return null; }
+/* ---------- Persistência (Google Sheets via Apps Script) ---------- */
+const API_URL = "https://script.google.com/macros/s/AKfycbz233x9u_lr-CrL-XyAu8DRO4tSDIrJC5JjYSWTuy24TFqXjHosMifbPEjgTXovm6bcPg/exec"; 
+
+let compradoresCache = [];
+
+// Carrega todos os compradores do Google Sheets (GET simples)
+async function carregarCompradores() {
+  try {
+    const resp = await fetch(API_URL); // GET
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    compradoresCache = await resp.json();
+  } catch (err) {
+    console.error("Erro ao carregar compradores:", err);
+    compradoresCache = [];
+  }
+}
+
+// Salva comprador no Google Sheets (POST sem preflight: form-urlencoded)
+// Salva comprador no Google Sheets (POST JSON)
+// Salva comprador no Google Sheets (sem preflight)
+async function setComprador(itemName, obj) {
+  try {
+    const params = new URLSearchParams();
+    params.append("item", itemName);
+    params.append("nome", obj.nome);
+    params.append("telefone", obj.telefone);
+    params.append("mensagem", obj.mensagem || "");
+
+    const resp = await fetch(API_URL, {
+      method: "POST",
+      body: params // IMPORTANTE: não colocar headers, o navegador define sozinho
+    });
+
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+
+    const data = await resp.json();
+    if (data.status === "ok") {
+      compradoresCache.push({ item: itemName, ...obj });
+    } else {
+      alert("Erro: " + data.msg);
     }
+  } catch (err) {
+    console.error("Falha ao salvar no servidor:", err);
+    alert("Falha ao salvar no servidor: " + err.message);
+  }
+}
+
+
+// Busca comprador de um item específico (do cache)
+function getComprador(itemName) {
+  if (!compradoresCache) return null;
+  return compradoresCache.find(c => c.item === itemName) || null;
+}
+
+// função de teste
+async function testarAPI() {
+  try {
+    const resp = await fetch(API_URL);
+    console.log("status", resp.status);
+    const data = await resp.json();
+    console.log("Retorno da API:", data);
+  } catch (e) {
+    console.error("Erro ao chamar API:", e);
+  }
+}
+
 
     /* ---------- Estado pendente para fluxo Quero presentear ---------- */
     let pending = {
@@ -911,7 +973,13 @@
     }
 
     /* ---------- Inicial ---------- */
-    gerarLista();
+window.addEventListener("DOMContentLoaded", async () => {
+  await carregarCompradores();
+  gerarLista();
+});
+
+
+
   </script>
 </body>
 </html>
