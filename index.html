@@ -851,58 +851,120 @@ async function testarAPI() {
     const modal = document.getElementById('modal');
     const confirmModal = document.getElementById('confirmModal');
 
-    function abrirModalPagamento(item) {
-      // reseta estado pendente para este item
-      pending.item = item;
-      pending.paidAction = false;
-      pending.whatsAction = false;
+function abrirModalPagamento(item) {
+  // Etapa 1: mensagem inicial com passo a passo
+  const mensagem = `
+    <p>Olá, ficamos muito felizes que irá nos ajudar a realizando o nosso sonho ♥</p>
+    <p>Aqui vai um passo a passo de como proceder, ok?</p>
+    <ol style="padding-left:18px;line-height:1.5;">
+      <li>Caso realmente vá nos abençoar com este presente, você irá preencher seus dados para que a gente saiba quem é.</li>
+      <li>Depois irá aparecer uma caixa com a opção de <strong>Pix</strong> ou <strong>Cartão</strong>.</li>
+      <li>Após copiar o Pix ou clicar no link do Cartão e realizar o pagamento, volte para este site — pois irá aparecer uma opção de nos enviar no WhatsApp para confirmar o presente.</li>
+      <li>Se não conseguir, nos chame no WhatsApp:<br>
+      📱 (31) 9 9892-8392 - Victor<br>
+      📱 (31) 9 8824-7802 - Larissa</li>
+    </ol>
+  `;
 
-      document.getElementById('modal-nome').textContent = item.nome;
-      document.getElementById('modal-preco').textContent = item.preco ? `R$ ${Number(item.preco).toFixed(2)}` : 'Contribuição livre';
-      document.getElementById('qr-pix').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(item.chavePix || '')}`;
-      document.getElementById('pix-chave').textContent = item.chavePix || '';
-      document.getElementById('link-cartao').href = item.linkCartao || '#';
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.5);display:flex;justify-content:center;
+    align-items:center;z-index:9999;
+  `;
+  overlay.innerHTML = `
+    <div style="background:white;padding:22px 26px;border-radius:12px;
+                max-width:500px;width:92%;border:3px solid #9b59b6;
+                box-shadow:0 6px 20px rgba(0,0,0,0.25);font-size:15px;">
+      ${mensagem}
+      <div style="text-align:right;margin-top:18px;">
+        <button id="confirmarPresente"
+                style="background:#9b59b6;color:white;padding:10px 18px;
+                       border:none;border-radius:8px;cursor:pointer;font-weight:bold;">
+          Sim, quero presentear
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
 
-      modal.style.display = 'flex';
-    }
+  document.getElementById("confirmarPresente").addEventListener("click", () => {
+    document.body.removeChild(overlay);
+    abrirPixECartao(item);
+  });
+}
+
+// Nova função separada para abrir as opções Pix e Cartão
+function abrirPixECartao(item) {
+  pending.item = item;
+  pending.paidAction = false;
+  pending.whatsAction = false;
+
+  document.getElementById('modal-nome').textContent = item.nome;
+  document.getElementById('modal-preco').textContent = item.preco ? `R$ ${Number(item.preco).toFixed(2)}` : 'Contribuição livre';
+  document.getElementById('qr-pix').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(item.chavePix || '')}`;
+  document.getElementById('pix-chave').textContent = item.chavePix || '';
+  document.getElementById('link-cartao').href = item.linkCartao || '#';
+
+  // altera texto e trava botão WhatsApp
+  const btnWhats = document.getElementById('btn-whats');
+  btnWhats.textContent = "Já fiz o pagamento";
+  btnWhats.disabled = true;
+  btnWhats.style.opacity = "0.6";
+  btnWhats.style.cursor = "not-allowed";
+
+  modal.style.display = 'flex';
+}
 
     function fecharModal() { modal.style.display = 'none'; }
 
     // copiar Pix: marca paidAction e verifica condições
     document.getElementById('btn-copiar-pix').addEventListener('click', async () => {
-      const chave = document.getElementById('pix-chave').innerText;
-      if (!chave) { showToast('Chave Pix indisponível'); return; }
-      try {
-        await navigator.clipboard.writeText(chave);
-        showToast('Chave Pix copiada ✅');
-      } catch (e) {
-        showToast('Não foi possível copiar automaticamente. Selecione e copie manualmente.');
-      }
-      pending.paidAction = true;
-      verificarFluxoPagamento();
-    });
+  const chave = document.getElementById('pix-chave').innerText;
+  if (!chave) { showToast('Chave Pix indisponível'); return; }
+  try {
+    await navigator.clipboard.writeText(chave);
+    showToast('Chave Pix copiada ✅');
+  } catch (e) {
+    showToast('Não foi possível copiar automaticamente. Selecione e copie manualmente.');
+  }
+  pending.paidAction = true;
+  liberarBotaoWhats();
+});
+
 
     // click no link cartão: marca paidAction, abre o link e verifica
-    document.getElementById('link-cartao').addEventListener('click', (ev) => {
-      const item = pending.item;
-      if (!item) return;
-      pending.paidAction = true;
-      // Abrir o link em nova aba (o anchor já tem href e target), mas verificamos estado após abrir
-      setTimeout(() => verificarFluxoPagamento(), 400);
-      // allow normal navigation (anchor handles open)
-    });
+   document.getElementById('link-cartao').addEventListener('click', (ev) => {
+  const item = pending.item;
+  if (!item) return;
+  pending.paidAction = true;
+  liberarBotaoWhats();
+});
+
 
     // botão WhatsApp: abre wa.me e marca whatsAction
-    document.getElementById('btn-whats').addEventListener('click', () => {
-      const item = pending.item;
-      if (!item) return;
-      const text = encodeURIComponent(`Olá Victor e Lari! Vou pagar o presente: *${item.nome}* ${item.preco ? `- R$ ${Number(item.preco).toFixed(2)}` : ''}`);
-      const url = `https://wa.me/${WHATS_NUMBER}?text=${text}`;
-      window.open(url, '_blank');
-      pending.whatsAction = true;
-      verificarFluxoPagamento();
-    });
+document.getElementById('btn-whats').addEventListener('click', () => {
+  const item = pending.item;
+  if (!item) return;
 
+  // se ainda não fez pagamento, impede
+  if (!pending.paidAction) {
+    showToast('Por favor, copie o Pix ou clique no link do Cartão antes de continuar.');
+    return;
+  }
+
+  // fecha modal Pix e abre o formulário
+  fecharModal();
+  abrirConfirmParaPending();
+});
+
+
+function liberarBotaoWhats() {
+  const btnWhats = document.getElementById('btn-whats');
+  btnWhats.disabled = false;
+  btnWhats.style.opacity = "1";
+  btnWhats.style.cursor = "pointer";
+}
     // verifica se ambas ações (pagamento + whatsapp) foram feitas
     function verificarFluxoPagamento() {
       if (!pending.item) return;
@@ -936,15 +998,53 @@ async function testarAPI() {
     }
 
     // "Já comprei este presente" abre o mesmo formulário mas em mode 'direct'
-    function abrirConfirmDireto(item) {
-      confirmContext.mode = 'direct';
-      confirmContext.item = item;
-      document.getElementById('confirm-title').textContent = `Confirmação: ${item.nome}`;
-      document.getElementById('compradorNome').value = '';
-      document.getElementById('compradorTel').value = '';
-      document.getElementById('compradorMsg').value = '';
-      confirmModal.style.display = 'flex';
-    }
+  function abrirConfirmDireto(item) {
+  // Mensagem de agradecimento antes do formulário
+  const mensagem = `
+    <p>Olá! 💜</p>
+    <p>Agradecemos muito por estar nos abençoando e nos ajudando a realizar o nosso sonho ♥</p>
+    <p>Saiba que nunca esqueceremos por ter nos ajudado. É com muito carinho que iremos receber o presente que comprou.</p>
+    <p>Agora você vai preencher seus dados (nome e telefone) e, depois disso, poderá nos avisar no WhatsApp.</p>
+    <p>Se não conseguir, nos chame no WhatsApp:<br>
+    📱 (31) 9 9892-8392 - Victor<br>
+    📱 (31) 9 8824-7802 - Larissa</p>
+  `;
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.5);display:flex;justify-content:center;
+    align-items:center;z-index:9999;
+  `;
+  overlay.innerHTML = `
+    <div style="background:white;padding:22px 26px;border-radius:12px;
+                max-width:500px;width:92%;border:3px solid #9b59b6;
+                box-shadow:0 6px 20px rgba(0,0,0,0.25);font-size:15px;">
+      ${mensagem}
+      <div style="text-align:right;margin-top:18px;">
+        <button id="continuarConfirmacao"
+                style="background:#9b59b6;color:white;padding:10px 18px;
+                       border:none;border-radius:8px;cursor:pointer;font-weight:bold;">
+          Continuar
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Quando clicar em continuar → abre formulário de dados
+  document.getElementById("continuarConfirmacao").addEventListener("click", () => {
+    document.body.removeChild(overlay);
+    confirmContext.mode = 'direct';
+    confirmContext.item = item;
+    document.getElementById('confirm-title').textContent = `Confirmação: ${item.nome}`;
+    document.getElementById('compradorNome').value = '';
+    document.getElementById('compradorTel').value = '';
+    document.getElementById('compradorMsg').value = '';
+    confirmModal.style.display = 'flex';
+  });
+}
+
 
     function fecharConfirm() { confirmModal.style.display = 'none'; confirmContext.item = null; }
 
@@ -963,14 +1063,103 @@ async function testarAPI() {
       showToast('Compra registrada com sucesso ✨');
 
       // para quem usou a opção "Já comprei" (direct), abrir WhatsApp com mensagem pronta para vocês (opcional)
-      if (confirmContext.mode === 'direct') {
-        const text = encodeURIComponent(`Olá! Acabei de comprar o presente *${item.nome}*. Ass.: ${nome} Tel:${tel}${msg ? ' — ' + msg : ''}`);
+	  if (confirmContext.mode === 'direct') {
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.5);display:flex;justify-content:center;
+    align-items:center;z-index:9999;
+  `;
+
+  // mensagem de agradecimento obrigatória antes do envio
+  overlay.innerHTML = `
+    <div style="background:white;padding:22px 26px;border-radius:12px;
+                max-width:500px;width:92%;border:3px solid #9b59b6;
+                box-shadow:0 6px 20px rgba(0,0,0,0.25);font-size:15px;">
+      <p>Olá <strong>${nome}</strong>! 💜</p>
+      <p>Agradecemos muito por estar nos abençoando e nos ajudando a realizar o nosso sonho ♥</p>
+      <p>Saiba que nunca esqueceremos por ter nos ajudado. É com muito carinho que iremos receber o presente que comprou.</p>
+      <p>Agora clique no botão abaixo para nos avisar no WhatsApp — é importante pra que saibamos que o presente já foi garantido, combinado? 💌</p>
+      <div style="text-align:right;margin-top:16px;">
+        <button id="btnEnviarWhats"
+                style="background:#25D366;color:white;padding:10px 16px;
+                       border:none;border-radius:8px;text-decoration:none;
+                       font-weight:bold;cursor:pointer;">
+          Informar no WhatsApp
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // ação obrigatória: só fecha após clicar e abrir o WhatsApp
+  document.getElementById("btnEnviarWhats").addEventListener("click", () => {
+    const text = encodeURIComponent(`Olá! Victor & Larissa Eu já comprei antecipadamente este presente: *${item.nome}*. Ass.: ${nome} Tel:${tel}${msg ? ' — ' + msg : ''}`);
         window.open(`https://wa.me/${WHATS_NUMBER}?text=${text}`, '_blank');
-      }
+
+    // remove o overlay após clicar no botão
+    document.body.removeChild(overlay);
+  });
+}
+if (confirmContext.mode === 'pending') {
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.5);display:flex;justify-content:center;
+    align-items:center;z-index:9999;
+  `;
+  overlay.innerHTML = `
+    <div style="background:white;padding:22px 26px;border-radius:12px;
+                max-width:500px;width:92%;border:3px solid #9b59b6;
+                box-shadow:0 6px 20px rgba(0,0,0,0.25);font-size:15px;">
+      <p>Olá <strong>${nome}</strong>! 💜</p>
+      <p>Agradecemos muito por estar nos abençoando e nos ajudando a realizar o nosso sonho ♥</p>
+      <p>Saiba que nunca esqueceremos por ter nos ajudado. É com muito carinho que iremos receber o presente que comprou.</p>
+      <p>Agora clique no botão abaixo para nos avisar no WhatsApp, combinado?</p>
+      <div style="text-align:right;margin-top:16px;">
+        <a href="https://wa.me/5531998928392?text=${encodeURIComponent(`Oi Victor e Lari! Aqui é ${nome}, e eu acabei de comprar o presente ${item.nome} no site! 💜`)}"
+           target="_blank"
+           style="background:#25D366;color:white;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold;">
+          Informar no WhatsApp
+        </a>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
       // reseta pending
       pending = { item: null, paidAction: false, whatsAction: false };
       confirmContext = { mode: 'pending', item: null };
     }
+	
+	// Mensagem de agradecimento personalizada após "Já comprei"
+function mostrarAgradecimento(nomeComprador) {
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.5);display:flex;justify-content:center;
+    align-items:center;z-index:9999;
+  `;
+  overlay.innerHTML = `
+    <div style="background:white;padding:22px 26px;border-radius:12px;
+                max-width:500px;width:92%;border:3px solid #9b59b6;
+                box-shadow:0 6px 20px rgba(0,0,0,0.25);font-size:15px;">
+      <p>Olá <strong>${nomeComprador}</strong>! 💜</p>
+      <p>Agradecemos muito por estar nos abençoando e nos ajudando a realizar o nosso sonho ♥</p>
+      <p>Saiba que nunca esqueceremos por ter nos ajudado. É com muito carinho que iremos receber o presente que comprou.</p>
+      <p>Clique no botão abaixo para nos avisar no WhatsApp e, se quiser, envie uma mensagem junto!</p>
+      <div style="text-align:right;margin-top:16px;">
+        <a href="https://wa.me/5531998928392?text=Olá,%20acabei%20de%20comprar%20o%20presente%20para%20vocês!%20🥰"
+           target="_blank"
+           style="background:#25D366;color:white;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold;">
+          Avisar no WhatsApp
+        </a>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
 
     /* ---------- Inicial ---------- */
 window.addEventListener("DOMContentLoaded", async () => {
